@@ -1,6 +1,7 @@
 #!/usr/bin/env bashio
 
 export __BASHIO_LOG_LEVEL=5
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 
 bashio::log.info "Node version: $(node --version)"
 bashio::log.info "npm version: $(npm --version)"
@@ -48,8 +49,7 @@ if bashio::config.true 'enable_conflict_detection'; then
         bashio::log.info "Addon ${FULL_SLUG} state: ${STATE}"
 
         if [ "${STATE}" = "started" ]; then
-            bashio::log.fatal "Conflict detected: ${FULL_SLUG} is running. Aborting startup."
-            exit 1
+            bashio::log.warning "Conflict detected: ${FULL_SLUG} is running. Please stop it if ports conflict."
         fi
     fi
 else

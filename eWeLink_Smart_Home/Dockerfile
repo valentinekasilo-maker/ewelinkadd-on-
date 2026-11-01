@@ -3,6 +3,7 @@ FROM ${BUILD_FROM}
 
 ENV LANG=C.UTF-8
 ENV CK_API_ENV=prod
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
 RUN apk add --no-cache \
     nodejs \
