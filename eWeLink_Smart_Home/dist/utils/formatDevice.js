@@ -162,13 +162,26 @@ var formatDevice = function (data) {
 };
 exports.formatDevice = formatDevice;
 var formatUnsupportDevice = function (data) {
+    var p = data.params || {};
+    var uiid = data.uiid;
+    if (!uiid) {
+        if (p.switches && Array.isArray(p.switches)) {
+            uiid = p.switches.length === 2 ? 2 : (p.switches.length === 3 ? 3 : 4);
+        } else {
+            uiid = 1;
+        }
+    }
     return {
         key: data.deviceId,
         deviceId: data.deviceId,
-        uiid: data.uiid,
+        uiid: uiid,
+        type: data.type || 4,
         deviceName: data.deviceName,
         params: data.params,
         online: data.online,
+        manufacturer: 'eWeLink',
+        model: (data.extra && data.extra.model) || 'eWeLink Device',
+        index: 20,
     };
 };
 var getFormattedDeviceList = function () {

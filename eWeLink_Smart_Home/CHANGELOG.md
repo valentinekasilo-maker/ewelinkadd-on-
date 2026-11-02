@@ -1,5 +1,18 @@
 # Changelogs
 
+## v2.0.2
+- **Fix Devices Offline in eWeLink App**: Automatically auto-adopt and lock onto the primary Virtual Gateway (`abf800656b` / `Device00656b`) holding existing sub-devices.
+- **Auto Online Broadcast**: Keepalive engine sends `type: 2` (WS_ONLINE) messages and parameter state updates to CoolKit WebSocket immediately upon connection and every 60s.
+- **Fail-Safe Device Sync**: Protect `/api/ha-devices/list` and background sync worker against CoolKit API rate limits and network latency.
+- **Non-Blocking Bottom Dock UI**: Positioned Sync control bar at bottom-left corner (`bottom: 24px; left: 24px`) with drag handle and minimize icon, preventing any obstruction of login form.
+- **SSL Certificate Verification Bypass**: Enable `NODE_TLS_REJECT_UNAUTHORIZED=0` and HTTPS agent bypass for `eu-apid.coolkit.cc`.
+- **Conflict Abort Disabled**: Converted fatal abort into warning to prevent container startup failures.
+
+## v2.0.1
+- Fix SSL certificate timeout to `eu-apid.coolkit.cc`.
+- Disable fatal conflict detection abort on startup.
+
+
 Maintenance for the **eWeLink Smart Home** add-on has ceased as of version **1.4.6**. We have released a [new eWeLink Smart Home add-on](https://github.com/iHost-Open-Source-Project/hassio-ihost-addon), which already supports the same devices as the legacy version and will continue to expand support for more SONOFF devices in the future. However, the new add-on no longer provides a built-in device control UI, nor does it support syncing Home Assistant devices back to the eWeLink cloud.
 
 ## v1.4.6

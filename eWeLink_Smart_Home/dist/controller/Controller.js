@@ -647,6 +647,114 @@ var Controller = (function () {
                 return device;
             }
             if (!Controller.deviceMap.has(id)) {
+                var p = (data && data.params) || {};
+                var tmp = data;
+                if (p.switches && Array.isArray(p.switches)) {
+                    var device = new CloudMultiChannelSwitchController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        tags: tmp.tags,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
+                if (p.power !== undefined || p.current !== undefined || p.voltage !== undefined) {
+                    var device = new CloudPowerDetectionSwitchController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
+                if (p.currentTemperature !== undefined || p.temperature !== undefined || p.humidity !== undefined) {
+                    var device = new CloudTandHModificationController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
+                if (p.switch !== undefined) {
+                    var switchDevice = new CloudSwitchController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, switchDevice);
+                    return switchDevice;
+                }
+                if (p.brightness !== undefined) {
+                    var device = new CloudDimmingController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
+                if (p.motorControl !== undefined) {
+                    var device = new CloudCoverController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
+                if (p.lock !== undefined) {
+                    var device = new CloudDW2WiFiController_1.default({
+                        deviceId: tmp.deviceid,
+                        deviceName: tmp.name,
+                        apikey: tmp.apikey,
+                        extra: tmp.extra,
+                        params: tmp.params,
+                        online: tmp.online,
+                        devicekey: tmp.devicekey,
+                        disabled: disabled,
+                        index: _index,
+                    });
+                    Controller.deviceMap.set(id, device);
+                    return device;
+                }
                 var unsupportDevice = new UnsupportDeviceController_1.default({
                     deviceId: data.deviceid,
                     deviceName: data.name,

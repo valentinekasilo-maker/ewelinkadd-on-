@@ -1,3 +1,11 @@
+
+function getSafeEntity(entList, allEntities, index) {
+    if (entList && entList[index]) return entList[index];
+    if (allEntities && allEntities[index]) return allEntities[index];
+    if (allEntities && allEntities[0]) return allEntities[0];
+    return { entityState: { state: 'off', attributes: {} } };
+}
+
 "use strict";
 var __values = (this && this.__values) || function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
@@ -25,6 +33,27 @@ var WebSocket2Ha_1 = require("./WebSocket2Ha");
 function checkUnavailableState(state) {
     return state === 'unavailable' ? 'off' : state;
 }
+function getHaServiceForEntity(entityId, turnOn) {
+    var domain = (entityId || '').split('.')[0];
+    if (domain === 'cover') return turnOn ? 'cover.open_cover' : 'cover.close_cover';
+    if (domain === 'lock') return turnOn ? 'lock.lock' : 'lock.unlock';
+    if (domain === 'fan') return turnOn ? 'fan.turn_on' : 'fan.turn_off';
+    if (domain === 'input_boolean') return turnOn ? 'input_boolean.turn_on' : 'input_boolean.turn_off';
+    if (domain === 'script') return 'script.turn_on';
+    if (domain === 'automation') return 'automation.trigger';
+    if (domain === 'scene') return 'scene.turn_on';
+    if (domain === 'light') return turnOn ? const_1.HA_SERVICE_LIGHT_TURN_ON : const_1.HA_SERVICE_LIGHT_TURN_OFF;
+    if (domain === 'switch') return turnOn ? const_1.HA_SERVICE_SWITCH_TURN_ON : const_1.HA_SERVICE_SWITCH_TURN_OFF;
+    return turnOn ? 'homeassistant.turn_on' : 'homeassistant.turn_off';
+}
+function toCkSwitchState(state, entityId) {
+    if (state === 'unavailable' || state === 'unknown') return 'off';
+    var domain = (entityId || '').split('.')[0];
+    if (domain === 'cover') return state === 'open' ? 'on' : 'off';
+    if (domain === 'lock') return state === 'locked' ? 'on' : 'off';
+    return state === 'on' ? 'on' : 'off';
+}
+
 function getEntityListByType(entities, type) {
     var e_1, _a;
     var entList = [];
@@ -51,19 +80,17 @@ function initDeviceParams(data) {
     var haDeviceData = data.haDeviceData;
     var params = null;
     if (uiid === const_1.CK_UIID_20001) {
-        var entList = getEntityListByType(haDeviceData.entities, 'switch');
+        var entList = (haDeviceData && haDeviceData.entities) || [];
+        var ent = entList[0] || {};
+        var st = (ent.entityState && ent.entityState.state) || 'off';
         params = {
-            switch: checkUnavailableState(entList[0].entityState.state)
+            switch: toCkSwitchState(st, ent.entityId)
         };
     }
     else if (uiid === const_1.CK_UIID_20002) {
         var entList = getEntityListByType(haDeviceData.entities, 'switch');
         params = {
-            switches: [
-                {
-                    switch: checkUnavailableState(entList[0].entityState.state),
-                    outlet: 0
-                },
+            switches: [ { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 0).entityState || {}).state || 'off'), outlet: 0 },
                 {
                     switch: checkUnavailableState(entList[1].entityState.state),
                     outlet: 1
@@ -74,15 +101,8 @@ function initDeviceParams(data) {
     else if (uiid === const_1.CK_UIID_20003) {
         var entList = getEntityListByType(haDeviceData.entities, 'switch');
         params = {
-            switches: [
-                {
-                    switch: checkUnavailableState(entList[0].entityState.state),
-                    outlet: 0
-                },
-                {
-                    switch: checkUnavailableState(entList[1].entityState.state),
-                    outlet: 1
-                },
+            switches: [ { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 0).entityState || {}).state || 'off'), outlet: 0 },
+                { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 1).entityState || {}).state || 'off'), outlet: 1 },
                 {
                     switch: checkUnavailableState(entList[2].entityState.state),
                     outlet: 2
@@ -93,36 +113,25 @@ function initDeviceParams(data) {
     else if (uiid === const_1.CK_UIID_20004) {
         var entList = getEntityListByType(haDeviceData.entities, 'switch');
         params = {
-            switches: [
-                {
-                    switch: checkUnavailableState(entList[0].entityState.state),
-                    outlet: 0
-                },
-                {
-                    switch: checkUnavailableState(entList[1].entityState.state),
-                    outlet: 1
-                },
-                {
-                    switch: checkUnavailableState(entList[2].entityState.state),
-                    outlet: 2
-                },
-                {
-                    switch: checkUnavailableState(entList[3].entityState.state),
-                    outlet: 3
-                },
+            switches: [ { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 0).entityState || {}).state || 'off'), outlet: 0 },
+                { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 1).entityState || {}).state || 'off'), outlet: 1 },
+                { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 2).entityState || {}).state || 'off'), outlet: 2 },
+                { switch: checkUnavailableState((getSafeEntity(entList, haDeviceData.entities, 3).entityState || {}).state || 'off'), outlet: 3 },
             ]
         };
     }
     else if (uiid === const_1.CK_UIID_20005) {
         var entList = getEntityListByType(haDeviceData.entities, 'light');
-        var entityState = entList[0].entityState;
+        var safeEnt = getSafeEntity(entList, haDeviceData.entities, 0);
+        var entityState = safeEnt.entityState || { state: 'off', attributes: {} };
         params = {
             switch: checkUnavailableState(entityState.state)
         };
     }
     else if (uiid === const_1.CK_UIID_20006) {
         var entList = getEntityListByType(haDeviceData.entities, 'light');
-        var entityState = entList[0].entityState;
+        var safeEnt = getSafeEntity(entList, haDeviceData.entities, 0);
+        var entityState = safeEnt.entityState || { state: 'off', attributes: {} };
         if (entityState.state === 'on') {
             var brightness = entityState.attributes.brightness;
             params = {
@@ -138,7 +147,8 @@ function initDeviceParams(data) {
     }
     else if (uiid === const_1.CK_UIID_20007) {
         var entList = getEntityListByType(haDeviceData.entities, 'light');
-        var entityState = entList[0].entityState;
+        var safeEnt = getSafeEntity(entList, haDeviceData.entities, 0);
+        var entityState = safeEnt.entityState || { state: 'off', attributes: {} };
         if (entityState.state === 'on') {
             var _a = entityState.attributes, brightness = _a.brightness, min_mireds = _a.min_mireds, max_mireds = _a.max_mireds, color_temp = _a.color_temp;
             params = {
@@ -155,7 +165,8 @@ function initDeviceParams(data) {
     }
     else if (uiid === const_1.CK_UIID_20008) {
         var entList = getEntityListByType(haDeviceData.entities, 'light');
-        var entityState = entList[0].entityState;
+        var safeEnt = getSafeEntity(entList, haDeviceData.entities, 0);
+        var entityState = safeEnt.entityState || { state: 'off', attributes: {} };
         if (entityState.state === 'on') {
             var _b = entityState.attributes, color_mode = _b.color_mode, brightness = _b.brightness, min_mireds = _b.min_mireds, max_mireds = _b.max_mireds, color_temp = _b.color_temp, hs_color = _b.hs_color;
             params = {
@@ -189,7 +200,7 @@ function getDeviceUpdateParams(deviceData, oldState, newState, haOldState) {
     var params = null;
     if (uiid === const_1.CK_UIID_20001) {
         params = {
-            switch: newState.state
+            switch: toCkSwitchState(newState.state, entityId)
         };
     }
     else if (uiid === const_1.CK_UIID_20002 || uiid === const_1.CK_UIID_20003 || uiid === const_1.CK_UIID_20004) {
@@ -321,28 +332,61 @@ function getToggleAllParams(deviceData, updateParams, uiid) {
 }
 function handleHaSwitch(deviceData, updateParams) {
     var uiid = deviceData.deviceUiid;
+    var entList = (deviceData.haDeviceData && deviceData.haDeviceData.entities) || [];
+    if (entList.length === 0) return;
     var params;
     if (uiid === const_1.CK_UIID_20001) {
-        var entList = getEntityListByType(deviceData.haDeviceData.entities, 'switch');
+        var targetEntity = entList[0].entityId;
+        var service = getHaServiceForEntity(targetEntity, updateParams.switch === 'on');
         params = {
             type: const_1.HA_WSMSG_TYPE_EXECUTE_SCRIPT,
             sequence: [
                 {
-                    service: updateParams.switch === 'on' ? const_1.HA_SERVICE_SWITCH_TURN_ON : const_1.HA_SERVICE_SWITCH_TURN_OFF,
+                    service: service,
                     target: {
-                        entity_id: entList[0].entityId
+                        entity_id: targetEntity
                     }
                 }
             ]
         };
     }
-    else if (updateParams.switches.length === 1) {
-        params = getToggleParams(deviceData, updateParams);
+    else if (updateParams.switches && updateParams.switches.length === 1) {
+        var outlet = updateParams.switches[0].outlet;
+        var targetEntity = entList[outlet] ? entList[outlet].entityId : entList[0].entityId;
+        var service = getHaServiceForEntity(targetEntity, updateParams.switches[0].switch === 'on');
+        params = {
+            type: const_1.HA_WSMSG_TYPE_EXECUTE_SCRIPT,
+            sequence: [
+                {
+                    service: service,
+                    target: {
+                        entity_id: targetEntity
+                    }
+                }
+            ]
+        };
     }
-    else {
-        params = getToggleAllParams(deviceData, updateParams, uiid);
+    else if (updateParams.switches) {
+        params = {
+            type: const_1.HA_WSMSG_TYPE_EXECUTE_SCRIPT,
+            sequence: []
+        };
+        for (var i = 0; i < updateParams.switches.length; i++) {
+            var outlet = updateParams.switches[i].outlet;
+            if (entList[outlet]) {
+                var targetEntity = entList[outlet].entityId;
+                params.sequence.push({
+                    service: getHaServiceForEntity(targetEntity, updateParams.switches[i].switch === 'on'),
+                    target: {
+                        entity_id: targetEntity
+                    }
+                });
+            }
+        }
     }
-    init_1.ws2ha.sendMessage(params);
+    if (params) {
+        init_1.ws2ha.sendMessage(params);
+    }
 }
 exports.handleHaSwitch = handleHaSwitch;
 function handleHaLight(deviceData, updateParams) {

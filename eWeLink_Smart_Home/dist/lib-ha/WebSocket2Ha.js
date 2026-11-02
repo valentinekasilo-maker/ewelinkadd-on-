@@ -59,7 +59,7 @@ var coolkit_api_device_1 = __importDefault(require("coolkit-api-device"));
 var coolkit_ws_device_1 = __importDefault(require("coolkit-ws-device"));
 var process_1 = __importDefault(require("process"));
 var logger_1 = require("../utils/logger");
-var ENTITY_TYPE_ALLOW_LIST = ['switch', 'light'];
+var ENTITY_TYPE_ALLOW_LIST = ['switch', 'light', 'fan', 'cover', 'lock', 'input_boolean', 'script', 'automation', 'scene'];
 function allowedEntityType(entityType) {
     return ENTITY_TYPE_ALLOW_LIST.includes(entityType);
 }
@@ -79,12 +79,20 @@ function entityStateFilter(states) {
 }
 function entityFilter(list, states) {
     var result = [];
+    var seen = new Set();
     for (var i = 0; i < list.length; i++) {
         var entityType = getEntityTypeById(list[i]['entity_id']);
-        var deviceId = list[i]['device_id'];
-        var entityState = lodash_1.default.find(states, { 'entity_id': list[i]['entity_id'] });
-        if (allowedEntityType(entityType) && deviceId) {
+        if (allowedEntityType(entityType)) {
             result.push(list[i]);
+            seen.add(list[i]['entity_id']);
+        }
+    }
+    for (var j = 0; j < states.length; j++) {
+        var entId = states[j]['entity_id'];
+        var entType = getEntityTypeById(entId);
+        if (allowedEntityType(entType) && !seen.has(entId)) {
+            result.push({ entity_id: entId, device_id: null, name: (states[j].attributes && states[j].attributes.friendly_name) || entId });
+            seen.add(entId);
         }
     }
     return result;
@@ -187,26 +195,15 @@ var WebSocket2Ha = (function () {
                         if (!deviceData) {
                             return [2, -1];
                         }
-                        return [4, coolkit_api_device_1.default.getGateWayAndSubDevice()];
+                        return [4, Promise.resolve(null)];
                     case 1:
-                        subDeviceListRes = _a.sent();
-                        if (subDeviceListRes.error !== 0) {
-                            return [2, -1];
-                        }
-                        subDeviceList = subDeviceListRes.data.subDevicesInfo;
-                        oldState = null;
-                        for (i = 0; i < subDeviceList.length; i++) {
-                            if (subDeviceList[i].itemData.deviceid === deviceData.ckDeviceData.deviceid) {
-                                oldState = subDeviceList[i].itemData.params;
-                                break;
-                            }
-                        }
-                        if (!oldState) {
-                            return [2, -1];
-                        }
+                        _a.sent();
+                        oldState = (deviceData.ckDeviceData && deviceData.ckDeviceData.params) || (0, protocols_1.initDeviceParams)(deviceData) || {};
                         newState = e.event.data.new_state;
-                        if (newState.state === 'unavailable') {
-                            logger_1.logger.info("HA device unavailable, new state: ".concat(JSON.stringify(newState)));
+                        var domain = (newState && newState.entity_id ? newState.entity_id : '').split('.')[0];
+                        var isControlDomain = ['switch', 'light', 'cover', 'fan', 'lock', 'input_boolean'].indexOf(domain) !== -1;
+                        if (newState && newState.state === 'unavailable' && isControlDomain) {
+                            logger_1.logger.info("HA device primary entity unavailable: ".concat(newState.entity_id));
                             (0, init_1.setCkDeviceOnlineState)({
                                 uiid: deviceData.deviceUiid,
                                 subDevId: deviceData.haDeviceData.deviceId,
@@ -221,7 +218,10 @@ var WebSocket2Ha = (function () {
                         if (!params) {
                             return [2, -1];
                         }
-                        if (lodash_1.default.get(init_1.ws2ckRes, 'error') === 0) {
+                        if (deviceData.ckDeviceData) {
+                            deviceData.ckDeviceData.params = Object.assign({}, oldState, params);
+                        }
+                        if (lodash_1.default.get(init_1.ws2ckRes, 'error') === 0 || (coolkit_ws_device_1.default && coolkit_ws_device_1.default.isWsExist())) {
                             (0, init_1.setCkDeviceOnlineState)({
                                 uiid: deviceData.deviceUiid,
                                 subDevId: deviceData.haDeviceData.deviceId,
@@ -233,8 +233,13 @@ var WebSocket2Ha = (function () {
                                 apikey: init_1.curUserGwData.userApiKey,
                                 deviceid: deviceData.ckDeviceData.deviceid,
                                 userAgent: 'device',
+                                sequence: Date.now().toString(),
                                 params: params
                             }));
+                            coolkit_api_device_1.default.updateSubDevice({
+                                deviceid: deviceData.ckDeviceData.deviceid,
+                                params: Object.assign({}, params, { online: true })
+                            }).catch(function() {});
                         }
                         _a.label = 2;
                     case 2: return [2];
@@ -272,8 +277,9 @@ var WebSocket2Ha = (function () {
             _this.ws.on('message', handler);
             setTimeout(function () {
                 _this.ws.removeEventListener('message', handler);
+                logger_1.logger.warn('getHaData timeout for type: ' + type);
                 resolve(-1);
-            }, 5000);
+            }, 20000);
         });
     };
     WebSocket2Ha.prototype.getEntityStates = function () {
@@ -339,20 +345,32 @@ var WebSocket2Ha = (function () {
                         entityList = entityFilter(entityRes, entityStateList);
                         logger_1.logger.verbose("getHaDeviceEntityMap: entityList: ".concat(JSON.stringify(entityList)));
                         for (i = 0; i < entityList.length; i++) {
-                            device = lodash_1.default.find(deviceList, { id: entityList[i]['device_id'] });
-                            deviceId = device['id'];
-                            entityId = entityList[i]['entity_id'];
+                            var ent = entityList[i];
+                            var entityId = ent['entity_id'];
+                            var devId = ent['device_id'];
+                            device = devId ? lodash_1.default.find(deviceList, { id: devId }) : null;
+                            deviceId = (device && device['id']) ? device['id'] : ('ha_' + entityId.replace(/[^a-zA-Z0-9_]/g, '_'));
                             entityState = lodash_1.default.find(entityStateList, { entity_id: entityId });
+
+                            var friendlyName = (entityState && entityState.attributes && entityState.attributes.friendly_name) || ent['name'];
+                            var exactName = (device && device['name_by_user']) ? device['name_by_user'] : (friendlyName || (device && device['name']) || entityId);
+
+                            if (device) {
+                                device['name'] = exactName;
+                            } else {
+                                device = { id: deviceId, name: exactName };
+                            }
+
                             index = lodash_1.default.findIndex(result, { deviceId: deviceId });
                             if (index === -1) {
                                 result.push({
                                     deviceId: deviceId,
                                     deviceData: device,
-                                    entities: [{ entityId: entityId, entityData: entityList[i], entityState: entityState }]
+                                    entities: [{ entityId: entityId, entityData: ent, entityState: entityState }]
                                 });
                             }
                             else {
-                                result[index].entities.push({ entityId: entityId, entityData: entityList[i], entityState: entityState });
+                                result[index].entities.push({ entityId: entityId, entityData: ent, entityState: entityState });
                             }
                         }
                         logger_1.logger.verbose("getHaDeviceEntityMap: result: ".concat(JSON.stringify(result)));

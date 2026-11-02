@@ -77,6 +77,27 @@ router.post('/sync2ck', function (req, res) { return __awaiter(void 0, void 0, v
         }
     });
 }); });
+router.post('/sync-all', function (req, res) {
+    try {
+        var startRes = api_1.startBackgroundSyncAll ? api_1.startBackgroundSyncAll() : (api_1.syncAllHaDevices ? (0, api_1.syncAllHaDevices)() : { error: 0, msg: 'Sync started' });
+        res.json(startRes);
+    } catch(e) {
+        res.json({ error: 500, msg: e.message || e });
+    }
+});
+
+router.get('/sync-status', function (req, res) {
+    var status = api_1.getSyncStatus ? api_1.getSyncStatus() : { inProgress: false, current: 0, total: 0, synced: 0, msg: '' };
+    res.json(Object.assign({ error: 0 }, status));
+});
+router.get('/auto-sync', function (req, res) {
+    res.json({ error: 0, autoSync: api_1.getAutoSyncState ? api_1.getAutoSyncState() : true });
+});
+router.post('/auto-sync', function (req, res) {
+    var enabled = req.body && req.body.enabled !== undefined ? req.body.enabled : true;
+    if (api_1.setAutoSyncState) api_1.setAutoSyncState(enabled);
+    res.json({ error: 0, autoSync: enabled, msg: 'Auto-sync ' + (enabled ? 'enabled' : 'disabled') });
+});
 router.get('/gwstate', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         res.json({ error: 0, data: { isNewGw: !init_1.curUserGwData.gwInList }, msg: 'success' });

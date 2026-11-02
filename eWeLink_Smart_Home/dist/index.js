@@ -1,5 +1,4 @@
 "use strict";
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -135,6 +134,9 @@ app.use("".concat(apiPrefix, "/devices"), devices_1.default);
 app.use("".concat(apiPrefix, "/stream"), stream_1.default);
 app.use("".concat(apiPrefix, "/util"), util_1.default);
 app.use("".concat(apiPrefix, "/ha-devices"), ha_devices_1.default);
+app.use("/ha-devices", ha_devices_1.default);
+app.all("".concat(apiPrefix, "/*"), function (req, res) { res.status(404).json({ error: 404, msg: "API route not found: " + req.originalUrl }); });
+app.all("/ha-devices/*", function (req, res) { res.status(404).json({ error: 404, msg: "API route not found: " + req.originalUrl }); });
 app.use('/', function (req, res) {
     res.type('.html');
     res.sendFile(path.join(__dirname, '/pages/index.html'));

@@ -1,1 +1,480 @@
-<!DOCTYPE html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="favicon.ico"><title>hass-addon-fe</title><link href="css/app.fbb553ba.css" rel="preload" as="style"><link href="css/chunk-vendors.c0245f89.css" rel="preload" as="style"><link href="js/app.f38b4930.js" rel="preload" as="script"><link href="js/chunk-vendors.91553557.js" rel="preload" as="script"><link href="css/chunk-vendors.c0245f89.css" rel="stylesheet"><link href="css/app.fbb553ba.css" rel="stylesheet"></head><body><noscript><strong>We're sorry but hass-addon-fe doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><div id="app"></div><script src="js/chunk-vendors.91553557.js"></script><script src="js/app.f38b4930.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="favicon.ico">
+<title>eWeLink Smart Home</title>
+<link href="css/app.fbb553ba.css" rel="preload" as="style">
+<link href="css/chunk-vendors.c0245f89.css" rel="preload" as="style">
+<link href="js/app.f38b4930.js?v=1.5.6" rel="preload" as="script">
+<link href="js/chunk-vendors.91553557.js?v=1.5.6" rel="preload" as="script">
+<link href="css/chunk-vendors.c0245f89.css" rel="stylesheet">
+<link href="css/app.fbb553ba.css" rel="stylesheet">
+<style>
+  #ha-ewelink-control-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(18, 24, 38, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    border-radius: 50px;
+    padding: 6px 14px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #fff;
+    font-size: 13px;
+    user-select: none;
+    touch-action: none;
+  }
+  #ha-ewelink-control-bar.minimized {
+    display: none !important;
+  }
+  #ha-ewelink-drag-handle {
+    cursor: grab;
+    opacity: 0.5;
+    padding: 2px 4px;
+    font-size: 15px;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  #ha-ewelink-drag-handle:active {
+    cursor: grabbing;
+    opacity: 1;
+  }
+  #ha-ewelink-control-bar .sync-btn {
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 30px;
+    padding: 7px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(14, 165, 233, 0.4);
+    transition: all 0.2s ease;
+  }
+  #ha-ewelink-control-bar .sync-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(14, 165, 233, 0.6);
+  }
+  #ha-ewelink-control-bar .sync-btn:active {
+    transform: translateY(0);
+  }
+  #ha-ewelink-control-bar .sync-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  #ha-ewelink-control-bar .toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+  }
+  #ha-ewelink-control-bar .switch-track {
+    width: 36px;
+    height: 20px;
+    background: #374151;
+    border-radius: 20px;
+    position: relative;
+    transition: background 0.3s;
+  }
+  #ha-ewelink-control-bar .switch-thumb {
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+  }
+  #ha-ewelink-control-bar.autosync-on .switch-track {
+    background: #10b981;
+  }
+  #ha-ewelink-control-bar.autosync-on .switch-thumb {
+    transform: translateX(16px);
+  }
+  #ha-ewelink-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  #ha-ewelink-status-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    box-shadow: 0 0 8px #10b981;
+  }
+  #ha-ewelink-btn-minimize {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #94a3b8;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    transition: all 0.2s;
+  }
+  #ha-ewelink-btn-minimize:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+  #ha-ewelink-floating-launcher {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 99998;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    user-select: none;
+  }
+  #ha-ewelink-floating-launcher:hover {
+    transform: scale(1.08);
+  }
+  #ha-ewelink-toast {
+    position: fixed;
+    bottom: 84px;
+    left: 24px;
+    z-index: 100000;
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    border-left: 4px solid #0ea5e9;
+    display: none;
+    animation: fadeInToast 0.3s;
+  }
+  @keyframes fadeInToast {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<noscript><strong>We're sorry but hass-addon-fe doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript>
+<div id="ha-ewelink-toast"></div>
+
+<!-- Floating HA Bridge Sync Bar -->
+<div id="ha-ewelink-control-bar" class="autosync-on">
+  <div id="ha-ewelink-drag-handle" title="Drag to reposition">⠿</div>
+  <div id="ha-ewelink-status-pill"><span class="dot"></span><span id="ha-ewelink-status-text">Bridge Ready</span></div>
+  <label class="toggle-wrapper" id="ha-toggle-label" title="Automatically sync new Home Assistant devices every 60 seconds">
+    <div class="switch-track"><div class="switch-thumb"></div></div>
+    <span>Auto-Sync</span>
+  </label>
+  <button id="ha-btn-sync-all" class="sync-btn" title="Sync all supported Home Assistant devices immediately">
+    <span>⚡ Sync All HA Devices</span>
+  </button>
+  <button id="ha-ewelink-btn-minimize" title="Minimize to icon">―</button>
+</div>
+
+<!-- Minimized Floating Button Launcher -->
+<button id="ha-ewelink-floating-launcher" title="Open eWeLink HA Sync Bar">⚡</button>
+
+<div id="app"></div>
+<script src="js/chunk-vendors.91553557.js?v=1.5.6"></script>
+<script src="js/app.f38b4930.js?v=1.5.6"></script>
+<script>
+(function() {
+  function showToast(msg, isSuccess) {
+    var t = document.getElementById('ha-ewelink-toast');
+    if (!t) return;
+    t.innerText = msg;
+    t.style.display = 'block';
+    t.style.borderLeftColor = isSuccess ? '#10b981' : '#f59e0b';
+    setTimeout(function() { t.style.display = 'none'; }, 4000);
+  }
+
+  var bar = document.getElementById('ha-ewelink-control-bar');
+  var launcher = document.getElementById('ha-ewelink-floating-launcher');
+  var minBtn = document.getElementById('ha-ewelink-btn-minimize');
+  var dragHandle = document.getElementById('ha-ewelink-drag-handle');
+  var btnSync = document.getElementById('ha-btn-sync-all');
+  var toggle = document.getElementById('ha-toggle-label');
+  var statusText = document.getElementById('ha-ewelink-status-text');
+  var isAutoSync = true;
+
+  // Restore saved position or minimized state
+  try {
+    var savedPos = JSON.parse(localStorage.getItem('ha_sync_bar_pos') || 'null');
+    if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
+      if (savedPos.top < 300) {
+        bar.style.bottom = '24px';
+        bar.style.left = '24px';
+        bar.style.top = 'auto';
+        try { localStorage.removeItem('ha_sync_bar_pos'); } catch(e) {}
+      } else {
+        bar.style.left = savedPos.left + 'px';
+        bar.style.top = savedPos.top + 'px';
+        bar.style.bottom = 'auto';
+      }
+    }
+    if (localStorage.getItem('ha_sync_bar_min') === 'true') {
+      bar.classList.add('minimized');
+      launcher.style.display = 'flex';
+      if (savedPos) {
+        launcher.style.left = savedPos.left + 'px';
+        launcher.style.top = savedPos.top + 'px';
+        launcher.style.bottom = 'auto';
+      }
+    }
+  } catch(e) {}
+
+  // Dragging support
+  var isDragging = false, startX, startY, initLeft, initTop;
+  function startDrag(e) {
+    if (e.target.closest('#ha-btn-sync-all, #ha-toggle-label, #ha-ewelink-btn-minimize')) return;
+    isDragging = true;
+    var clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    var clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    var rect = bar.getBoundingClientRect();
+    startX = clientX;
+    startY = clientY;
+    initLeft = rect.left;
+    initTop = rect.top;
+    bar.style.transition = 'none';
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchmove', doDrag);
+    document.addEventListener('touchend', stopDrag);
+  }
+
+  function doDrag(e) {
+    if (!isDragging) return;
+    var clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    var clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    var newL = Math.max(10, Math.min(window.innerWidth - bar.offsetWidth - 10, initLeft + (clientX - startX)));
+    var newT = Math.max(10, Math.min(window.innerHeight - bar.offsetHeight - 10, initTop + (clientY - startY)));
+    bar.style.left = newL + 'px';
+    bar.style.top = newT + 'px';
+    bar.style.bottom = 'auto';
+  }
+
+  function stopDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    bar.style.transition = '';
+    document.removeEventListener('mousemove', doDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('touchmove', doDrag);
+    document.removeEventListener('touchend', stopDrag);
+    try {
+      var rect = bar.getBoundingClientRect();
+      localStorage.setItem('ha_sync_bar_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+    } catch(err) {}
+  }
+
+  if (dragHandle) {
+    dragHandle.addEventListener('mousedown', startDrag);
+    dragHandle.addEventListener('touchstart', startDrag);
+  }
+
+  // Minimize / Expand logic
+  if (minBtn && launcher) {
+    minBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      bar.classList.add('minimized');
+      launcher.style.display = 'flex';
+      var rect = bar.getBoundingClientRect();
+      launcher.style.left = rect.left + 'px';
+      launcher.style.top = rect.top + 'px';
+      launcher.style.bottom = 'auto';
+      try { localStorage.setItem('ha_sync_bar_min', 'true'); } catch(err) {}
+    });
+
+    launcher.addEventListener('click', function() {
+      launcher.style.display = 'none';
+      bar.classList.remove('minimized');
+      try { localStorage.setItem('ha_sync_bar_min', 'false'); } catch(err) {}
+    });
+  }
+
+  function getIngressBasePath() {
+    var p = window.location.pathname;
+    if (/\.[a-zA-Z0-9]+$/.test(p)) {
+      p = p.substring(0, p.lastIndexOf('/') + 1);
+    } else if (!p.endsWith('/')) {
+      p = p + '/';
+    }
+    return p;
+  }
+
+  function callHaApi(endpoint, options) {
+    options = options || {};
+    var base = getIngressBasePath();
+    var urls = [
+      base + 'api/ha-devices/' + endpoint,
+      base + 'ha-devices/' + endpoint,
+      'api/ha-devices/' + endpoint,
+      'ha-devices/' + endpoint
+    ];
+    function tryFetch(idx) {
+      if (idx >= urls.length) {
+        return Promise.reject(new Error('Add-on backend is still starting or initializing. Please wait a few seconds and try again.'));
+      }
+      return fetch(urls[idx], options)
+        .then(function(r) {
+          var ct = r.headers.get('content-type') || '';
+          if (r.ok && ct.indexOf('application/json') !== -1) {
+            return r.json();
+          }
+          return tryFetch(idx + 1);
+        })
+        .catch(function() {
+          return tryFetch(idx + 1);
+        });
+    }
+    return tryFetch(0);
+  }
+
+  function refreshStatus() {
+    callHaApi('auto-sync')
+      .then(function(res) {
+        if (res && res.error === 0) {
+          isAutoSync = res.autoSync !== false;
+          updateBarClass();
+        }
+      }).catch(function() {});
+
+    callHaApi('sync-status')
+      .then(function(res) {
+        if (res && res.inProgress && !syncPollTimer) {
+          pollSyncProgress();
+        }
+      }).catch(function() {});
+
+    callHaApi('list')
+      .then(function(res) {
+        if (res && res.error === 0 && Array.isArray(res.data)) {
+          var synced = res.data.filter(function(d) { return d.syncState; }).length;
+          var total = res.data.length;
+          statusText.innerText = synced + '/' + total + ' Synced';
+        }
+      }).catch(function() {});
+  }
+
+  function updateBarClass() {
+    if (bar) {
+      if (isAutoSync) bar.classList.add('autosync-on');
+      else bar.classList.remove('autosync-on');
+    }
+  }
+
+  if (toggle) {
+    toggle.onclick = function() {
+      isAutoSync = !isAutoSync;
+      updateBarClass();
+      callHaApi('auto-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: isAutoSync })
+      })
+      .then(function(res) {
+        showToast(isAutoSync ? '🔄 Auto-Sync enabled (checking every 60s)' : '⏸️ Auto-Sync disabled', true);
+      })
+      .catch(function() {
+        showToast('Failed to update Auto-Sync', false);
+      });
+    };
+  }
+
+  var syncPollTimer = null;
+
+  function pollSyncProgress() {
+    if (syncPollTimer) clearInterval(syncPollTimer);
+    if (btnSync) btnSync.disabled = true;
+
+    syncPollTimer = setInterval(function() {
+      callHaApi('sync-status')
+        .then(function(status) {
+          if (status && status.inProgress) {
+            var curr = status.current || 0;
+            var tot = status.total || 0;
+            if (btnSync) btnSync.innerHTML = '<span>⏳ Syncing ' + curr + (tot ? '/' + tot : '') + '...</span>';
+            if (statusText) statusText.innerText = (status.synced || curr) + (tot ? '/' + tot : '') + ' Synced';
+          } else if (status && !status.inProgress) {
+            clearInterval(syncPollTimer);
+            syncPollTimer = null;
+            if (btnSync) {
+              btnSync.disabled = false;
+              btnSync.innerHTML = '<span>⚡ Sync All HA Devices</span>';
+            }
+            showToast('✅ ' + (status.msg || 'Sync completed successfully!'), true);
+            refreshStatus();
+            setTimeout(function() { window.location.reload(); }, 1800);
+          }
+        })
+        .catch(function() {
+          // Keep polling until finished
+        });
+    }, 1500);
+  }
+
+  if (btnSync) {
+    btnSync.onclick = function() {
+      btnSync.disabled = true;
+      btnSync.innerHTML = '<span>⏳ Starting sync...</span>';
+      showToast('⏳ Starting background sync for Home Assistant devices...', true);
+
+      callHaApi('sync-all', { method: 'POST' })
+        .then(function(res) {
+          if (res && res.error === 0) {
+            showToast('🚀 ' + (res.msg || 'Sync in progress in background...'), true);
+            pollSyncProgress();
+          } else {
+            btnSync.disabled = false;
+            btnSync.innerHTML = '<span>⚡ Sync All HA Devices</span>';
+            showToast('⚠️ ' + ((res && res.msg) || 'Could not start sync'), false);
+          }
+        })
+        .catch(function(err) {
+          btnSync.disabled = false;
+          btnSync.innerHTML = '<span>⚡ Sync All HA Devices</span>';
+          showToast('❌ Sync notice: ' + (err.message || err), false);
+        });
+    };
+  }
+
+  refreshStatus();
+  setInterval(refreshStatus, 30000);
+})();
+</script>
+</body>
+</html>

@@ -73,25 +73,89 @@ exports.curUserGwData = curUserGwData;
 var ws2ckRes;
 exports.ws2ckRes = ws2ckRes;
 function setCkDeviceOnlineState(_a) {
-    var subDevId = _a.subDevId, uiid = _a.uiid, deviceid = _a.deviceid, online = _a.online;
+    var subDevId = _a.subDevId, uiid = _a.uiid, deviceid = _a.deviceid, online = _a.online, params = _a.params;
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_b) {
-            coolkit_ws_device_1.default.sendMessage({
-                action: 'subDevice',
-                apikey: curUserGwData.userApiKey,
-                deviceid: curUserGwData.gwDeviceid,
-                userAgent: 'device',
-                params: {
-                    cmds: [
-                        {
-                            uiid: uiid,
-                            type: online ? WS_ONLINE : WS_OFFLINE,
-                            subDevId: subDevId,
-                            deviceid: deviceid
-                        }
-                    ]
+            var gwId = (curUserGwData && curUserGwData.gwDeviceid) || '';
+            var uKey = (curUserGwData && curUserGwData.userApiKey) || (0, dataUtil_1.getDataSync)('user.json', ['user', 'apikey']) || '';
+            var gKey = (curUserGwData && curUserGwData.gwApikey) || uKey;
+            var effectiveSubDevId = subDevId || deviceid;
+            var deviceParams = params || { switch: 'on' };
+            logger_1.logger.info('setCkDeviceOnlineState: subdevice ' + deviceid + ' -> ' + (online ? 'ONLINE' : 'OFFLINE') + ' (gw: ' + gwId + ')');
+            try {
+                var cmds = [
+                    {
+                        uiid: uiid,
+                        type: online ? WS_ONLINE : WS_OFFLINE,
+                        subDevId: deviceid,
+                        subDeviceId: deviceid,
+                        deviceid: deviceid
+                    },
+                    {
+                        uiid: uiid,
+                        type: online ? WS_ONLINE : WS_OFFLINE,
+                        subDevId: effectiveSubDevId,
+                        subDeviceId: effectiveSubDevId,
+                        deviceid: deviceid
+                    }
+                ];
+                if (online && deviceParams) {
+                    cmds.push({
+                        uiid: uiid,
+                        type: 0,
+                        subDevId: deviceid,
+                        subDeviceId: deviceid,
+                        deviceid: deviceid,
+                        params: deviceParams
+                    });
                 }
-            });
+                var subDevMsgGw = JSON.stringify({
+                    action: 'subDevice',
+                    apikey: gKey,
+                    deviceid: gwId,
+                    userAgent: 'device',
+                    sequence: Date.now().toString(),
+                    params: { cmds: cmds }
+                });
+                coolkit_ws_device_1.default.sendMessage(subDevMsgGw);
+                if (uKey && uKey !== gKey) {
+                    var subDevMsgUser = JSON.stringify({
+                        action: 'subDevice',
+                        apikey: uKey,
+                        deviceid: gwId,
+                        userAgent: 'device',
+                        sequence: (Date.now() + 1).toString(),
+                        params: { cmds: cmds }
+                    });
+                    coolkit_ws_device_1.default.sendMessage(subDevMsgUser);
+                }
+                var updatePayload = Object.assign({}, deviceParams, { online: !!online });
+                coolkit_ws_device_1.default.sendMessage(JSON.stringify({
+                    action: 'update',
+                    apikey: uKey,
+                    deviceid: deviceid,
+                    userAgent: 'device',
+                    sequence: (Date.now() + 2).toString(),
+                    params: updatePayload
+                }));
+            } catch(e) {
+                logger_1.logger.warn('setCkDeviceOnlineState WS error: ' + e);
+            }
+            try {
+                coolkit_api_device_1.default.updateSubDevice({
+                    deviceid: deviceid,
+                    params: Object.assign({}, deviceParams, { online: !!online })
+                }).catch(function() {});
+            } catch(e) {}
+            try {
+                if (coolkit_api_1.default && coolkit_api_1.default.device && coolkit_api_1.default.device.updateThingStatus) {
+                    coolkit_api_1.default.device.updateThingStatus({
+                        type: 2,
+                        id: deviceid,
+                        params: Object.assign({}, deviceParams, { online: !!online })
+                    }).catch(function() {});
+                }
+            } catch(e) {}
             return [2];
         });
     });
@@ -198,7 +262,7 @@ function init() {
                 case 4:
                     exports.curUserGwData = curUserGwData = found;
                     _b.label = 5;
-                case 5: return [4, coolkit_api_1.default.device.getThingList()];
+                case 5: return [4, coolkit_api_1.default.device.getThingList({ num: 0 })];
                 case 6:
                     deviceListRes = _b.sent();
                     if (deviceListRes.error !== 0) {
@@ -209,32 +273,60 @@ function init() {
                 case 7:
                     newGwData = _b.sent();
                     index = lodash_1.default.findIndex(newGwData, { userApiKey: userApiKey });
+                    var bestGw = null;
+                    var bestScore = -1;
                     for (i = 0; i < deviceList.length; i++) {
-                        userGwuuid = lodash_1.default.get(deviceList[i].itemData, 'params.partnerDevice.ezVedioSerial');
-                        if (userGwuuid === newGwData[index].gwuuid) {
-                            apikey = lodash_1.default.get(deviceList[i], 'itemData.devicekey');
-                            deviceid = lodash_1.default.get(deviceList[i], 'itemData.deviceid');
-                            region = (0, dataUtil_1.getDataSync)('user.json', ['region']);
-                            coolkit_api_device_1.default.init({
-                                apikey: apikey,
-                                appSecret: app_1.appSecret,
-                                deviceid: deviceid,
-                                region: region,
-                                useTestEnv: process_1.default.env.CK_API_ENV === 'test'
-                            });
-                            newGwData[index].gwInList = true;
-                            break;
+                        var it = deviceList[i].itemData || deviceList[i];
+                        if (!it) continue;
+                        var uiid = lodash_1.default.get(it, 'extra.uiid') || lodash_1.default.get(it, 'uiid');
+                        var nameLower = (it.name || '').toLowerCase();
+                        var model = lodash_1.default.get(it, 'extra.model') || '';
+                        var isGw = uiid === 20000 || uiid === 23 || model === 'HA_Gateway' || model === 'NON-OTA-GL' || (it.params && it.params.partnerDevice) || nameLower.includes('device00') || nameLower.includes('gateway');
+                        if (isGw) {
+                            var score = 0;
+                            var devId = lodash_1.default.get(it, 'deviceid') || '';
+                            if (devId === 'abf800656b') {
+                                score += 100000;
+                            }
+                            var subCount = (it.subDevices && it.subDevices.length) || (it.params && it.params.subDevices && it.params.subDevices.length) || 0;
+                            score += subCount * 10;
+                            var currentUuid = lodash_1.default.get(it, 'params.partnerDevice.ezVedioSerial') || lodash_1.default.get(it, 'params.partnerDevice.uniqueID');
+                            if (currentUuid && currentUuid === newGwData[index].gwuuid) {
+                                score += 500;
+                            }
+                            if (score > bestScore || !bestGw) {
+                                bestScore = score;
+                                bestGw = it;
+                            }
                         }
-                        else {
-                            newGwData[index].gwInList = false;
-                            continue;
-                        }
+                    }
+                    if (bestGw) {
+                        apikey = lodash_1.default.get(bestGw, 'devicekey');
+                        deviceid = lodash_1.default.get(bestGw, 'deviceid');
+                        region = (0, dataUtil_1.getDataSync)('user.json', ['region']);
+                        userGwuuid = lodash_1.default.get(bestGw, 'params.partnerDevice.ezVedioSerial') || lodash_1.default.get(bestGw, 'params.partnerDevice.uniqueID') || newGwData[index].gwuuid;
+                        logger_1.logger.info('Auto-adopted Main Virtual Gateway: ' + deviceid + ' (' + bestGw.name + ') [Score: ' + bestScore + ']');
+                        coolkit_api_device_1.default.init({
+                            apikey: apikey,
+                            appSecret: app_1.appSecret,
+                            deviceid: deviceid,
+                            region: region,
+                            isDevice: true,
+                            debug: true,
+                            useTestEnv: process_1.default.env.CK_API_ENV === 'test'
+                        });
+                        newGwData[index].gwuuid = userGwuuid;
+                        newGwData[index].gwInList = true;
+                        newGwData[index].gwApikey = apikey;
+                        newGwData[index].gwDeviceid = deviceid;
+                    } else {
+                        newGwData[index].gwInList = false;
                     }
                     exports.curUserGwData = curUserGwData = newGwData[index];
                     return [4, (0, dataUtil_1.setGwData)(newGwData)];
                 case 8:
                     _b.sent();
-                    if (!(curUserGwData.gwInList && lodash_1.default.get(ws2ckRes, 'error') !== 0)) return [3, 11];
+                    if (!(curUserGwData.gwInList && (!coolkit_ws_device_1.default.isWsExist() || lodash_1.default.get(ws2ckRes, 'error') !== 0))) return [3, 11];
                     return [4, initWs2Ck({
                             apikey: curUserGwData.gwApikey,
                             region: (0, dataUtil_1.getDataSync)('user.json', ['region']),
@@ -252,7 +344,8 @@ function init() {
                                 if (dev.ckDeviceData) {
                                     entities = dev.haDeviceData.entities;
                                     online = true;
-                                    if (entities.some(function (entity) { return entity.entityState.state === 'unavailable'; })) {
+                                    var primary = (entities || []).find(function (e) { var d = (e.entityId || '').split('.')[0]; return ['switch', 'light', 'cover', 'fan', 'lock', 'input_boolean'].indexOf(d) !== -1; }) || (entities && entities[0]);
+                                    if (primary && primary.entityState && (primary.entityState.state === 'unavailable' || primary.entityState.state === 'unknown')) {
                                         online = false;
                                     }
                                     setCkDeviceOnlineState({
@@ -287,3 +380,63 @@ function init() {
     });
 }
 exports.init = init;
+
+var gwWatchdogTimer = null;
+function broadcastAllSubDevicesOnline() {
+    try {
+        if (!curUserGwData || !curUserGwData.syncDeviceData || !Array.isArray(curUserGwData.syncDeviceData)) return;
+        var syncedList = curUserGwData.syncDeviceData.filter(function(d) { return d.syncState && d.ckDeviceData; });
+        if (syncedList.length === 0) return;
+        logger_1.logger.info('Broadcasting ONLINE keepalive for ' + syncedList.length + ' synced sub-devices...');
+        for (var i = 0; i < syncedList.length; i++) {
+            var dev = syncedList[i];
+            var devParams = (0, protocols_1.initDeviceParams)(dev);
+            var isOnline = (0, api_1.isDeviceOnline)(dev);
+            setCkDeviceOnlineState({
+                subDevId: dev.haDeviceData ? dev.haDeviceData.deviceId : dev.ckDeviceData.deviceid,
+                uiid: dev.deviceUiid,
+                deviceid: dev.ckDeviceData.deviceid,
+                online: isOnline,
+                params: devParams
+            });
+        }
+    } catch(err) {
+        logger_1.logger.error('broadcastAllSubDevicesOnline error: ' + err);
+    }
+}
+exports.broadcastAllSubDevicesOnline = broadcastAllSubDevicesOnline;
+
+function startGwWatchdog() {
+    if (gwWatchdogTimer) return;
+    logger_1.logger.info('eWeLink Virtual Gateway Watchdog started (interval: 25s)');
+    gwWatchdogTimer = setInterval(function() {
+        try {
+            if (!curUserGwData || !curUserGwData.gwInList || !curUserGwData.gwDeviceid) return;
+            var isWsAlive = coolkit_ws_device_1.default && coolkit_ws_device_1.default.isWsExist();
+            if (!isWsAlive) {
+                var region = (0, dataUtil_1.getDataSync)('user.json', ['region']);
+                var gwKey = curUserGwData.gwApikey || curUserGwData.userApiKey;
+                logger_1.logger.warn('Gateway WS dropped! Reconnecting watchdog for deviceid=' + curUserGwData.gwDeviceid);
+                initWs2Ck({ apikey: gwKey, region: region, deviceid: curUserGwData.gwDeviceid })
+                    .then(function() {
+                        logger_1.logger.info('Gateway WS restored by watchdog!');
+                        setTimeout(broadcastAllSubDevicesOnline, 2000);
+                    })
+                    .catch(function(e) {
+                        logger_1.logger.error('Watchdog reconnect error: ' + e);
+                    });
+            }
+        } catch(err) {
+            logger_1.logger.error('Watchdog exception: ' + err);
+        }
+    }, 25000);
+
+    // Also run periodic keepalive every 60s
+    setInterval(function() {
+        if (coolkit_ws_device_1.default && coolkit_ws_device_1.default.isWsExist()) {
+            broadcastAllSubDevicesOnline();
+        }
+    }, 60000);
+}
+exports.startGwWatchdog = startGwWatchdog;
+setTimeout(startGwWatchdog, 10000);
